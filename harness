@@ -89,3 +89,28 @@ print(failed_category_distribution)
 misclassifications
 
 data
+
+# With some sampling by priority
+
+# Sample n records for each Priority
+n = 5  # You can set this to whatever number you want
+sampled_data = data.groupby('Priority').apply(lambda x: x.sample(n=min(n, len(x)))).reset_index(drop=True)
+
+# Tokenize and Predict labels for "Message" in the sampled data
+try:
+    inputs = tokenizer(sampled_data['Message'].tolist(), truncation=True, padding=True, return_tensors='pt')
+    with torch.no_grad():
+        outputs = model(**inputs)
+        predictions = torch.argmax(outputs.logits, dim=1).cpu().numpy()
+except Exception as e:
+    print(f"An error occurred: {e}")
+    predictions = np.full(len(sampled_data), -1)  # Fill with -1 or another invalid label ID
+
+# Assume you've initialized 'label_mapping' here
+
+# Map predictions to label names
+sampled_data['Predicted_Category'] = [label_mapping.get(str(i), 'Unknown') for i in predictions]
+
+# Save the sampled data and predictions
+sampled_data.to_csv('sampled_data.csv', index=False)
+sampled_data[['MessageID', 'Priority', 'Predicted_Category']].to_csv('predictions.csv', index=False)
